@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Petualangan Dunia Faktor</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Comic Sans MS', 'Segoe UI', sans-serif; }
+  body {
+    background: linear-gradient(135deg, #1e3c72, #2a5298, #6dd5ed);
+    min-height: 100vh;
+    display: flex; justify-content: center; align-items: center;
+    padding: 20px;
+  }
+  .game-container {
+    background: #fff; border-radius: 25px; padding: 30px;
+    max-width: 700px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    text-align: center;
+    border: 6px solid #ffd700;
+  }
+  h1 { color: #1e3c72; font-size: 1.8em; margin-bottom: 10px; }
+  .subtitle { color: #555; margin-bottom: 20px; font-size: 0.95em; }
+  .status-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    background: #f0f4ff; padding: 12px 18px; border-radius: 15px;
+    margin-bottom: 20px; font-weight: bold;
+  }
+  .status-item { font-size: 1em; color: #1e3c72; }
+  .hearts { font-size: 1.3em; }
+  .level-badge {
+    background: #ffd700; color: #1e3c72; padding: 6px 14px;
+    border-radius: 20px; font-size: 0.9em;
+  }
+  .question {
+    font-size: 1.3em; color: #333; margin: 20px 0;
+    padding: 15px; background: #fffbe6; border-radius: 15px;
+    border-left: 6px solid #ffd700;
+  }
+  .question strong { color: #d32f2f; font-size: 1.4em; }
+  .numbers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+    gap: 12px; margin: 25px 0;
+  }
+  .num-btn {
+    padding: 20px 10px; font-size: 1.3em; font-weight: bold;
+    background: #e3f2fd; color: #1e3c72;
+    border: 3px solid #2196f3; border-radius: 15px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .num-btn:hover:not(:disabled) {
+    background: #2196f3; color: white; transform: scale(1.05);
+  }
+  .num-btn.selected-correct {
+    background: #4caf50 !important; color: white !important;
+    border-color: #2e7d32 !important;
+  }
+  .num-btn.selected-wrong {
+    background: #f44336 !important; color: white !important;
+    border-color: #b71c1c !important;
+    animation: shake 0.4s;
+  }
+  .num-btn:disabled { cursor: not-allowed; opacity: 0.7; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+  }
+  .feedback {
+    min-height: 30px; font-weight: bold; font-size: 1.05em;
+    margin: 15px 0;
+  }
+  .feedback.correct { color: #2e7d32; }
+  .feedback.wrong { color: #c62828; }
+  .actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    padding: 12px 28px; font-size: 1em; font-weight: bold;
+    border: none; border-radius: 30px; cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #4caf50, #2e7d32);
+    color: white; box-shadow: 0 5px 15px rgba(76,175,80,0.4);
+  }
+  .btn-secondary {
+    background: linear-gradient(135deg, #ff9800, #e65100);
+    color: white; box-shadow: 0 5px 15px rgba(255,152,0,0.4);
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: none; justify-content: center; align-items: center; z-index: 100;
+    padding: 20px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: white; border-radius: 25px; padding: 35px;
+    max-width: 480px; text-align: center; border: 6px solid #ffd700;
+  }
+  .modal h2 { color: #1e3c72; margin-bottom: 15px; }
+  .modal p { margin: 10px 0; color: #555; line-height: 1.6; }
+  .modal .big-emoji { font-size: 4em; margin-bottom: 10px; }
+
+  @media (max-width: 500px) {
+    h1 { font-size: 1.4em; }
+    .question { font-size: 1.1em; }
+    .num-btn { padding: 15px 5px; font-size: 1.1em; }
+  }
+</style>
+</head>
+<body>
+
+<div class="game-container">
+  <h1>🏝️ Petualangan Dunia Faktor</h1>
+  <p class="subtitle">Matematika Kelas IV SD — Ayo temukan faktor bilangan!</p>
+
+  <div class="status-bar">
+    <span class="status-item" id="levelDisplay">Level 1/5</span>
+    <span class="hearts" id="heartsDisplay">❤️❤️❤️</span>
+    <span class="status-item" id="scoreDisplay">⭐ 0</span>
+  </div>
+
+  <div class="question" id="questionText">Memuat soal...</div>
+  <div class="numbers-grid" id="numbersGrid"></div>
+  <div class="feedback" id="feedback"></div>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="checkBtn" disabled>✅ Periksa Jawaban</button>
+    <button class="btn btn-secondary" id="nextBtn" style="display:none;">➡️ Lanjut</button>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="big-emoji" id="modalEmoji">🎉</div>
+    <h2 id="modalTitle">Selamat!</h2>
+    <p id="modalMessage"></p>
+    <button class="btn btn-primary" id="modalBtn" style="margin-top:20px;">Lanjut</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   DATA LEVEL — Faktor Bilangan
+   ============================================================ */
+const LEVELS = [
+  {
+    island: "Pulau Awal",
+    question: "Pilih SEMUA faktor dari bilangan <strong>12</strong>!",
+    target: 12,
+    options: [1,2,3,4,5,6,7,8,9,10,11,12],
+    correct: [1,2,3,4,6,12]
+  },
+  {
+    island: "Pulau Batu",
+    question: "Pilih SEMUA faktor dari bilangan <strong>24</strong>!",
+    target: 24,
+    options: [1,2,3,4,5,6,8,10,12,16,20,24],
+    correct: [1,2,3,4,6,8,12,24]
+  },
+  {
+    island: "Pulau Kabut",
+    question: "Pilih SEMUA faktor persekutuan dari <strong>18</strong> dan <strong>27</strong>!",
+    target: "18 & 27",
+    options: [1,2,3,4,5,6,7,8,9,12,18,27],
+    correct: [1,3,9]
+  },
+  {
+    island: "Pulau Api",
+    question: "Pilih SEMUA faktor dari bilangan <strong>36</strong>!",
+    target: 36,
+    options: [1,2,3,4,5,6,8,9,10,12,15,18,24,36],
+    correct: [1,2,3,4,6,9,12,18,36]
+  },
+  {
+    island: "Pulau Kristal",
+    question: "Ibu memiliki <strong>40</strong> kue dan <strong>48</strong> permen. Ia ingin membaginya ke dalam beberapa kantong dengan isi sama banyak. Pilih SEMUA faktor persekutuan dari 40 dan 48!",
+    target: "40 & 48",
+    options: [1,2,3,4,5,6,8,10,12,20,24,48],
+    correct: [1,2,4,8]
+  }
+];
+
+/* ============================================================
+   STATE GAME
+   ============================================================ */
+let currentLevel = 0;
+let score = 0;
+let lives = 3;
+let selected = new Set();
+let answered = false;
+
+/* ============================================================
+   ELEMEN DOM
+   ============================================================ */
+const levelDisplay = document.getElementById('levelDisplay');
+const heartsDisplay = document.getElementById('heartsDisplay');
+const scoreDisplay = document.getElementById('scoreDisplay');
+const questionText = document.getElementById('questionText');
+const numbersGrid = document.getElementById('numbersGrid');
+const feedback = document.getElementById('feedback');
+const checkBtn = document.getElementById('checkBtn');
+const nextBtn = document.getElementById('nextBtn');
+const modalOverlay = document.getElementById('modalOverlay');
+const modalEmoji = document.getElementById('modalEmoji');
+const modalTitle = document.getElementById('modalTitle');
+const modalMessage = document.getElementById('modalMessage');
+const modalBtn = document.getElementById('modalBtn');
+
+/* ============================================================
+   FUNGSI UTAMA
+   ============================================================ */
+function loadLevel() {
+  const lvl = LEVELS[currentLevel];
+  answered = false;
+  selected.clear();
+
+  levelDisplay.textContent = `Level ${currentLevel + 1}/${LEVELS.length} — ${lvl.island}`;
+  updateHearts();
+  updateScore();
+  questionText.innerHTML = lvl.question;
+  feedback.textContent = "";
+  feedback.className = "feedback";
+
+  numbersGrid.innerHTML = "";
+  lvl.options.forEach(num => {
+    const btn = document.createElement('button');
+    btn.className = 'num-btn';
+    btn.textContent = num;
+    btn.dataset.value = num;
+    btn.onclick = () => toggleNumber(btn, num);
+    numbersGrid.appendChild(btn);
+  });
+
+  checkBtn.disabled = true;
+  checkBtn.style.display = 'inline-block';
+  nextBtn.style.display = 'none';
+}
+
+function toggleNumber(btn, num) {
+  if (answered) return;
+  if (selected.has(num)) {
+    selected.delete(num);
+    btn.classList.remove('selected-correct');
+    btn.style.background = "";
+    btn.style.color = "";
+    btn.style.borderColor = "";
+  } else {
+    selected.add(num);
+    btn.classList.add('selected-correct');
+  }
+  checkBtn.disabled = selected.size === 0;
+}
+
+function checkAnswer() {
+  if (answered) return;
+  answered = true;
+
+  const lvl = LEVELS[currentLevel];
+  const correctSet = new Set(lvl.correct);
+  let allCorrect = true;
+  let wrongPicks = 0;
+
+  // Tandai setiap tombol
+  document.querySelectorAll('.num-btn').forEach(btn => {
+    const val = parseInt(btn.dataset.value);
+    btn.disabled = true;
+    if (selected.has(val) && correctSet.has(val)) {
+      btn.classList.remove('selected-correct');
+      btn.classList.add('selected-correct');
+    } else if (selected.has(val) && !correctSet.has(val)) {
+      btn.classList.remove('selected-correct');
+      btn.classList.add('selected-wrong');
+      wrongPicks++;
+    } else if (!selected.has(val) && correctSet.has(val)) {
+      // faktor yang terlewat → tandai kuning
+      btn.style.background = "#fff59d";
+      btn.style.borderColor = "#fbc02d";
+    }
+  });
+
+  // Cek apakah jawaban lengkap & benar
+  const isComplete = selected.size === correctSet.size &&
+    [...selected].every(v => correctSet.has(v));
+
+  if (isComplete) {
+    score += 100;
+    feedback.textContent = "🎉 Hebat! Jawabanmu benar semua!";
+    feedback.className = "feedback correct";
+    updateScore();
+    showModal("🎉", "Luar Biasa!", `Kamu berhasil melewati ${lvl.island}! +100 poin.`, () => {
+      closeModal();
+      currentLevel++;
+      if (currentLevel < LEVELS.length) loadLevel();
+      else endGame();
+    });
+  } else {
+    lives--;
+    updateHearts();
+    if (wrongPicks > 0) {
+      feedback.textContent = "❌ Ups! Ada angka yang bukan faktor. Coba ingat kembali!";
+    } else {
+      feedback.textContent = "⚠️ Masih ada faktor yang belum kamu pilih!";
+    }
+    feedback.className = "feedback wrong";
+
+    if (lives <= 0) {
+      setTimeout(() => {
+        showModal("💔", "Nyawa Habis!", "Jangan menyerah! Ayo coba lagi level ini.", () => {
+          closeModal();
+          lives = 3;
+          updateHearts();
+          loadLevel();
+        });
+      }, 800);
+    } else {
+      // Beri kesempatan mengulang level yang sama
+      setTimeout(() => {
+        showModal("🤔", "Coba Lagi!", `Kamu kehilangan 1 nyawa. Ayo teliti lagi!`, () => {
+          closeModal();
+          loadLevel();
+        });
+      }, 900);
+    }
+  }
+}
+
+function updateHearts() {
+  heartsDisplay.textContent = "❤️".repeat(lives) + "🖤".repeat(3 - lives);
+}
+
+function updateScore() {
+  scoreDisplay.textContent = `⭐ ${score}`;
+}
+
+function showModal(emoji, title, message, callback) {
+  modalEmoji.textContent = emoji;
+  modalTitle.textContent = title;
+  modalMessage.textContent = message;
+  modalOverlay.classList.add('active');
+  modalBtn.onclick = callback;
+}
+
+function closeModal() {
+  modalOverlay.classList.remove('active');
+}
+
+function endGame() {
+  let rating = "🌟 Petualang Pemula";
+  if (score >= 500) rating = "🏆 Master Faktor Sejati";
+  else if (score >= 400) rating = "🥇 Petualang Hebat";
+  else if (score >= 300) rating = "🥈 Petualang Mahir";
+
+  showModal(
+    "🏆",
+    "Selamat, Petualang!",
+    `Kamu telah menyelesaikan seluruh Dunia Faktor!\n\nSkor Akhir: ${score}\nGelar: ${rating}\n\nTeruslah berlatih faktor bilangan, ya!`,
+    () => {
+      closeModal();
+      // Reset game
+      currentLevel = 0;
+      score = 0;
+      lives = 3;
+      loadLevel();
+    }
+  );
+}
+
+/* ============================================================
+   EVENT LISTENER
+   ============================================================ */
+checkBtn.onclick = checkAnswer;
+
+/* ============================================================
+   START GAME
+   ============================================================ */
+loadLevel();
+</script>
+</body>
+</html>
